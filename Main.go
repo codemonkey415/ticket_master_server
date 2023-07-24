@@ -19,6 +19,7 @@ func main() {
 		port = "8080"
 	}
 
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Logger())
 
