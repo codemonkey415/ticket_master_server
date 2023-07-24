@@ -7,6 +7,7 @@ import (
 
 	"os"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	_ "github.com/heroku/x/hmetrics/onload"
 	"github.com/octocat0415/routes"
@@ -21,6 +22,13 @@ func main() {
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
+
+	config := cors.DefaultConfig()
+	config.AllowHeaders = []string{"X-Requested-With", "Content-Type", "Authorization"}
+	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE"}
+	config.AllowOrigins = []string{"*"}
+	router.Use(cors.New(config))
+
 	router.Use(gin.Logger())
 
 	routes.UserRoutes(router)
