@@ -118,6 +118,7 @@ func SignUp() gin.HandlerFunc {
 // Login is the api used to get a single user
 func Login() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		fmt.Println("sdfa")
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		var user models.User
 		var foundUser models.User

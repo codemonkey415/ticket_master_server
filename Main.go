@@ -29,7 +29,7 @@ func main() {
 	routes.SeatRoutes(router)
 
 	// Test API
-	router.GET("/api/test", func(c *gin.Context) {
+	router.GET("/api/test/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"success": "Success"})
 
 	})
@@ -37,7 +37,7 @@ func main() {
 	// router.Use(middleware.Authentication())
 
 	// API - 1
-	router.GET("/api-2", func(c *gin.Context) {
+	router.GET("/api-2/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"success": "Access granted for api-2"})
 	})
 
