@@ -90,7 +90,7 @@ func ValidateToken(signedToken string) (claims *SignedDetails, msg string) {
 }
 
 // UpdateAllTokens renews the user tokens when they login
-func UpdateAllTokens(signedToken string, signedRefreshToken string, userId string) {
+func UpdateAllTokens(signedToken string, signedRefreshToken string, userId string) bson.M {
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 
 	var updateObj primitive.D
@@ -115,12 +115,16 @@ func UpdateAllTokens(signedToken string, signedRefreshToken string, userId strin
 		},
 		&opt,
 	)
+
+	var foundUser bson.M
+	userCollection.FindOne(ctx, filter).Decode(&foundUser)
+
 	defer cancel()
 
 	if err != nil {
 		log.Panic(err)
-		return
+		return bson.M{}
 	}
 
-	return
+	return foundUser
 }

@@ -25,6 +25,11 @@ func GetAllEvents() gin.HandlerFunc {
 					"is_active": 1,
 				},
 			},
+			bson.M{
+				"$addFields": bson.M{
+					"label": "$name",
+				},
+			},
 			// bson.M{"$limit": 100},
 		}
 

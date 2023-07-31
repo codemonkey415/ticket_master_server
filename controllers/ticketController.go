@@ -123,7 +123,7 @@ func GetAllTickets() gin.HandlerFunc {
 	}
 }
 
-func GetSectionNames() gin.HandlerFunc {
+func GetEvents() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
@@ -132,7 +132,68 @@ func GetSectionNames() gin.HandlerFunc {
 		pipeline := bson.A{
 			bson.M{
 				"$group": bson.M{
-					"_id": "$section_name",
+					"_id": "$event_id",
+				},
+			},
+			bson.M{
+				"$lookup": bson.M{
+					"from":         "events",
+					"localField":   "_id",
+					"foreignField": "event_id",
+					"as":           "event",
+				},
+			},
+			bson.M{
+				"$unwind": "$event",
+			},
+			bson.M{
+				"$project": bson.M{
+					"event_date": "$event.event_date",
+					"label":      "$event.name",
+					"venue":      "$event.venue",
+				},
+			},
+		}
+
+		results, err := ticketCollection.Aggregate(ctx, pipeline)
+
+		defer cancel()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		defer results.Close(ctx)
+		for results.Next(ctx) {
+			var single bson.M
+			if err = results.Decode(&single); err != nil {
+				log.Fatal(err)
+			}
+			result = append(result, single)
+		}
+
+		c.JSON(http.StatusOK, result)
+	}
+}
+
+func GetSectionNames() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		event_id := c.Param("eventid")
+
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		var result []bson.M
+
+		pipeline := bson.A{
+			bson.M{
+				"$match": bson.M{
+					"event_id": event_id,
+				},
+			},
+			bson.M{
+				"$group": bson.M{
+					"_id":   "$section_name",
+					"label": bson.M{"$first": "$section_name"},
 				},
 			},
 		}
@@ -161,10 +222,17 @@ func GetSectionNames() gin.HandlerFunc {
 func GetRows() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
+		event_id := c.Param("eventid")
+
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		var result []bson.M
 
 		pipeline := bson.A{
+			bson.M{
+				"$match": bson.M{
+					"event_id": event_id,
+				},
+			},
 			bson.M{
 				"$group": bson.M{
 					"_id": "$row_name",
