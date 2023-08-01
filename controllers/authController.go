@@ -121,10 +121,10 @@ func SignUp() gin.HandlerFunc {
 // Login is the api used to get a single user
 func Login() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Content-Type", "application/x-www-form-urlencoded")
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "POST")
-		c.Header("Access-Control-Allow-Headers", "Content-Type")
+		// c.Header("Content-Type", "application/x-www-form-urlencoded")
+		// c.Header("Access-Control-Allow-Origin", "*")
+		// c.Header("Access-Control-Allow-Methods", "POST")
+		// c.Header("Access-Control-Allow-Headers", "Content-Type")
 
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
