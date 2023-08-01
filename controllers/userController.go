@@ -25,11 +25,7 @@ var seatCollection *mongo.Collection = database.OpenCollection(database.Client, 
 
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Content-Type", "application/x-www-form-urlencoded")
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "POST")
-		c.Header("Access-Control-Allow-Headers", "Content-Type")
-
+		fmt.Println("+++++++++++")
 		email := c.GetString("email")
 
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
@@ -84,11 +80,6 @@ func GetSeatDataForUser(user models.User) ([]models.Ticket, error) {
 
 func GetUsers() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Content-Type", "application/x-www-form-urlencoded")
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "*")
-		c.Header("Access-Control-Allow-Headers", "Content-Type")
-
 		pageSizeStr := c.Query("page_size")
 		pageStr := c.Query("page")
 
@@ -154,11 +145,6 @@ func GetUsers() gin.HandlerFunc {
 
 func ChangeStatus() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Content-Type", "application/x-www-form-urlencoded")
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "POST")
-		c.Header("Access-Control-Allow-Headers", "Content-Type")
-
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 
 		defer cancel()
@@ -201,11 +187,6 @@ func ChangeStatus() gin.HandlerFunc {
 
 func UpdateDueDate() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Content-Type", "application/x-www-form-urlencoded")
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "POST")
-		c.Header("Access-Control-Allow-Headers", "Content-Type")
-
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
@@ -260,11 +241,6 @@ func UpdateDueDate() gin.HandlerFunc {
 
 func ChangeRole() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Content-Type", "application/x-www-form-urlencoded")
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "POST")
-		c.Header("Access-Control-Allow-Headers", "Content-Type")
-
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
@@ -285,7 +261,7 @@ func ChangeRole() gin.HandlerFunc {
 			return
 		}
 
-		update := bson.D{{"$set", bson.D{{"role", requestBody.Role}}}}
+		update := bson.D{{Key: "$set", Value: bson.D{{Key: "role", Value: requestBody.Role}}}}
 
 		result := userCollection.FindOneAndUpdate(ctx, filter, update)
 		if result.Err() != nil {
@@ -305,11 +281,6 @@ func ChangeRole() gin.HandlerFunc {
 
 func SaveReservations() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Content-Type", "application/x-www-form-urlencoded")
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "POST")
-		c.Header("Access-Control-Allow-Headers", "Content-Type")
-
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
@@ -330,7 +301,13 @@ func SaveReservations() gin.HandlerFunc {
 			return
 		}
 
-		update := bson.D{{"$addToSet", bson.D{{"reservations", bson.D{{"$each", requestBody.Reservations}}}}}}
+		update := bson.D{
+			{Key: "$addToSet", Value: bson.D{
+				{Key: "reservations", Value: bson.D{
+					{Key: "$each", Value: requestBody.Reservations},
+				}},
+			}},
+		}
 		result := userCollection.FindOneAndUpdate(ctx, filter, update)
 
 		if result.Err() != nil {
@@ -349,11 +326,6 @@ func SaveReservations() gin.HandlerFunc {
 
 func RemoveReservations() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Content-Type", "application/x-www-form-urlencoded")
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "POST")
-		c.Header("Access-Control-Allow-Headers", "Content-Type")
-
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
