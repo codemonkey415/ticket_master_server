@@ -33,6 +33,11 @@ func main() {
 	router.Use(cors.New(config))
 
 	router.Use(gin.Logger())
+	
+	// Test API
+	router.GET("/api/test/", func(c *gin.Context) {
+		c.JSON(200, gin.H{"success": "Success"})
+	})
 
 	routes.AuthRoutes(router)
 	router.Use(middleware.Authentication())
@@ -40,13 +45,6 @@ func main() {
 	routes.TicketRoutes(router)
 	routes.EventRoutes(router)
 	routes.SeatRoutes(router)
-
-	// Test API
-	router.GET("/api/test/", func(c *gin.Context) {
-		email := c.GetString("email")
-		fmt.Println(email)
-		c.JSON(200, gin.H{"success": "Success"})
-	})
 
 	// API - 1
 	router.GET("/api-2/", func(c *gin.Context) {
