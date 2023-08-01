@@ -5,7 +5,6 @@ import (
 	// middleware "smt-go-server/middleware"
 	// routes "smt-go-server/routes"
 
-	"fmt"
 	"os"
 
 	"github.com/gin-contrib/cors"
