@@ -32,7 +32,7 @@ func main() {
 	router.Use(gin.Logger())
 
 	// Test API
-	router.GET("/api/test/", func(c *gin.Context) {
+	router.GET("/test", func(c *gin.Context) {
 		c.JSON(200, gin.H{"success": "Success"})
 	})
 
