@@ -86,7 +86,7 @@ func GetUsers() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Content-Type", "application/x-www-form-urlencoded")
 		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "POST")
+		c.Header("Access-Control-Allow-Methods", "*")
 		c.Header("Access-Control-Allow-Headers", "Content-Type")
 
 		pageSizeStr := c.Query("page_size")
@@ -334,7 +334,7 @@ func SaveReservations() gin.HandlerFunc {
 		result := userCollection.FindOneAndUpdate(ctx, filter, update)
 
 		if result.Err() != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "User doesn't exist"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		updatedUser := models.User{}

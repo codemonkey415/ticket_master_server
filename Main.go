@@ -5,7 +5,6 @@ import (
 	// middleware "smt-go-server/middleware"
 	// routes "smt-go-server/routes"
 
-	"fmt"
 	"os"
 
 	"github.com/gin-contrib/cors"
@@ -24,7 +23,6 @@ func main() {
 
 	// gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	gin.SetMode(gin.ReleaseMode)
 
 	config := cors.DefaultConfig()
 	config.AllowHeaders = []string{"X-Requested-With", "Content-Type", "Authorization"}
@@ -34,19 +32,17 @@ func main() {
 
 	router.Use(gin.Logger())
 
+	// Test API
+	router.GET("/api/test/", func(c *gin.Context) {
+		c.JSON(200, gin.H{"success": "Success"})
+	})
+
 	routes.AuthRoutes(router)
 	router.Use(middleware.Authentication())
 	routes.UserRoutes(router)
 	routes.TicketRoutes(router)
 	routes.EventRoutes(router)
 	routes.SeatRoutes(router)
-
-	// Test API
-	router.GET("/api/test/", func(c *gin.Context) {
-		email := c.GetString("email")
-		fmt.Println(email)
-		c.JSON(200, gin.H{"success": "Success"})
-	})
 
 	// API - 1
 	router.GET("/api-2/", func(c *gin.Context) {
