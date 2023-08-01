@@ -31,11 +31,6 @@ func main() {
 	router.Use(cors.New(config))
 
 	router.Use(gin.Logger())
-	
-	// Test API
-	router.GET("/api/test/", func(c *gin.Context) {
-		c.JSON(200, gin.H{"success": "Success"})
-	})
 
 	// Test API
 	router.GET("/api/test/", func(c *gin.Context) {
