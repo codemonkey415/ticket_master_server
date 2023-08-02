@@ -35,6 +35,7 @@ func EventRoutes(incomingRoutes *gin.Engine) {
 
 func SeatRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/api/seat/events/", controller.GetEvents())
+	incomingRoutes.POST("/api/seat/venues/", controller.GetVenues())
 	incomingRoutes.GET("/api/seat/sections/:eventid/", controller.GetSectionNames())
 	incomingRoutes.GET("/api/seat/rows/:eventid/", controller.GetRows())
 	incomingRoutes.POST("/api/seat/", controller.GetAllTickets())
