@@ -14,6 +14,44 @@ type Mail struct {
 	Body    string
 }
 
+func SendResetPasswordLink(email string, token string) (bool, error) {
+
+	sender := "foryoursuccess0415@gmail.com"
+
+	to := []string{
+		email,
+	}
+
+	user := "foryoursuccess0415@gmail.com"
+	password := "ukubrwzsfcxwjoih"
+
+	subject := "Reset Password"
+	body := `Click on the following link to reset your password: <a href="https://smt-client-mui.vercel.app/reset-password/"` + token + `">https://smt-client-mui.vercel.app/reset-password/` + token + `</a>`
+
+	request := Mail{
+		Sender:  sender,
+		To:      to,
+		Subject: subject,
+		Body:    body,
+	}
+
+	addr := "smtp.gmail.com:587"
+	host := "smtp.gmail.com"
+
+	msg := BuildMessage(request)
+	auth := smtp.PlainAuth("", user, password, host)
+	err := smtp.SendMail(addr, auth, sender, to, []byte(msg))
+
+	fmt.Println(body)
+
+	if err != nil {
+		fmt.Println(err)
+		return false, err
+	}
+
+	return true, nil
+}
+
 func SendMail(email string, data string) {
 
 	sender := "foryoursuccess0415@gmail.com"

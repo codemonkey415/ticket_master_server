@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"log"
+	"math/big"
 
 	"net/http"
 	"time"
@@ -24,6 +26,21 @@ import (
 
 var userCollection *mongo.Collection = database.OpenCollection(database.Client, "user")
 var validate = validator.New()
+
+func generateRandomString(length int) (string, error) {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+	var result string
+	for i := 0; i < length; i++ {
+		randomIndex, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			return "", err
+		}
+		result += string(charset[randomIndex.Int64()])
+	}
+
+	return result, nil
+}
 
 // HashPassword is used to encrypt the password before it is stored in the DB
 func HashPassword(password string) string {
@@ -121,11 +138,6 @@ func SignUp() gin.HandlerFunc {
 // Login is the api used to get a single user
 func Login() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// c.Header("Content-Type", "application/x-www-form-urlencoded")
-		// c.Header("Access-Control-Allow-Origin", "*")
-		// c.Header("Access-Control-Allow-Methods", "POST")
-		// c.Header("Access-Control-Allow-Headers", "Content-Type")
-
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
 
@@ -187,5 +199,94 @@ func Login() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, data)
+	}
+}
+
+func ForgotPassword() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+
+		var requestBody struct {
+			Email string `json:"email"`
+		}
+
+		if err := c.BindJSON(&requestBody); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		randomstr, err := generateRandomString(10)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		hashedToken := HashPassword(randomstr)
+
+		filter := bson.M{"email": requestBody.Email}
+		update := bson.M{"$set": bson.M{"reset_password_token": hashedToken}}
+
+		result, err := userCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "User doesn't exist"})
+			return
+		}
+
+		if result.ModifiedCount == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		} else {
+
+			_, err := helper.SendResetPasswordLink(requestBody.Email, hashedToken)
+
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"msg": "Email was sent successfully"})
+		}
+
+	}
+}
+
+func ResetPassword() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+
+		token := c.Param("token")
+
+		var foundUser models.User
+
+		var requestBody struct {
+			Password string `jsong:"password"`
+		}
+
+		if err := c.BindJSON(&requestBody); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		filter := bson.M{"reset_password_token": token}
+		// update := bson.M{"$set": bson.M{"reset_password_token": hashedToken}}
+
+		err := userCollection.FindOne(ctx, filter).Decode(&foundUser)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Token"})
+			return
+		}
+
+		newPassword := HashPassword(requestBody.Password)
+
+		update := bson.M{"$set": bson.M{"password": newPassword}}
+
+		_, err = userCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
 	}
 }

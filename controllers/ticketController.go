@@ -125,29 +125,48 @@ func GetAllTickets() gin.HandlerFunc {
 
 func GetEvents() gin.HandlerFunc {
 	return func(c *gin.Context) {
-
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second) // Set a shorter timeout duration
+		defer cancel()
 		var result []bson.M
 
-		pipeline := bson.A{
-			bson.M{
-				"$group": bson.M{
-					"_id": "$event_id",
-				},
+		var requestBody struct {
+			StartDate time.Time `json:"start_date"`
+			EndDate   time.Time `json:"end_date"`
+		}
+		err := c.ShouldBindJSON(&requestBody)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		fmt.Println(requestBody.StartDate)
+		fmt.Println(requestBody.EndDate)
+
+		groupStage := bson.D{
+			bson.E{
+				Key:   "$group",
+				Value: bson.D{{Key: "_id", Value: "$event_id"}},
 			},
-			bson.M{
-				"$lookup": bson.M{
+		}
+
+		lookupStage := bson.D{
+			bson.E{
+				Key: "$lookup",
+				Value: bson.M{
 					"from":         "events",
 					"localField":   "_id",
 					"foreignField": "event_id",
 					"as":           "event",
 				},
 			},
-			bson.M{
-				"$unwind": "$event",
-			},
-			bson.M{
-				"$project": bson.M{
+		}
+
+		unwindStage := bson.D{{Key: "$unwind", Value: "$event"}}
+
+		projectStage := bson.D{
+			bson.E{
+				Key: "$project",
+				Value: bson.M{
 					"event_date": "$event.event_date",
 					"label":      "$event.name",
 					"venue":      "$event.venue",
@@ -155,14 +174,24 @@ func GetEvents() gin.HandlerFunc {
 			},
 		}
 
-		results, err := ticketCollection.Aggregate(ctx, pipeline)
+		matchStage := bson.D{
+			bson.E{
+				Key: "$match",
+				Value: bson.M{
+					"event_date": bson.M{
+						"$gte": requestBody.StartDate,
+						"$lte": requestBody.EndDate,
+					},
+				},
+			},
+		}
 
-		defer cancel()
+		pipeline := mongo.Pipeline{groupStage, lookupStage, unwindStage, projectStage, matchStage}
+		results, err := ticketCollection.Aggregate(ctx, pipeline)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-
 		defer results.Close(ctx)
 		for results.Next(ctx) {
 			var single bson.M
