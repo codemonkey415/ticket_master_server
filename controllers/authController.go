@@ -239,12 +239,13 @@ func ForgotPassword() gin.HandlerFunc {
 			return
 		} else {
 
-			// _, err := helper.SendResetPasswordLink(requestBody.Email, hashedToken)
+			_, err := helper.SendResetPasswordLink(requestBody.Email, hashedToken)
 
-			// if err != nil {
-			// 	c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			// 	return
-			// }
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			
 			c.JSON(http.StatusOK, gin.H{"token": hashedToken})
 		}
 
