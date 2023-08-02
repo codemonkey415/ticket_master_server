@@ -216,13 +216,14 @@ func ForgotPassword() gin.HandlerFunc {
 			return
 		}
 
-		randomstr, err := generateRandomString(10)
+		randomstr, err := generateRandomString(32)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		hashedToken := HashPassword(randomstr)
+		// hashedToken := HashPassword(randomstr)
+		hashedToken := randomstr
 
 		filter := bson.M{"email": requestBody.Email}
 		update := bson.M{"$set": bson.M{"reset_password_token": hashedToken}}
@@ -238,13 +239,13 @@ func ForgotPassword() gin.HandlerFunc {
 			return
 		} else {
 
-			_, err := helper.SendResetPasswordLink(requestBody.Email, hashedToken)
+			// _, err := helper.SendResetPasswordLink(requestBody.Email, hashedToken)
 
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{"msg": "Email was sent successfully"})
+			// if err != nil {
+			// 	c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			// 	return
+			// }
+			c.JSON(http.StatusOK, gin.H{"token": hashedToken})
 		}
 
 	}
@@ -279,7 +280,7 @@ func ResetPassword() gin.HandlerFunc {
 
 		newPassword := HashPassword(requestBody.Password)
 
-		update := bson.M{"$set": bson.M{"password": newPassword}}
+		update := bson.M{"$set": bson.M{"password": newPassword, "reset_password_token": ""}}
 
 		_, err = userCollection.UpdateOne(ctx, filter, update)
 		if err != nil {
