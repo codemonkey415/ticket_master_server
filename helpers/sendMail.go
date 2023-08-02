@@ -26,7 +26,7 @@ func SendResetPasswordLink(email string, token string) (bool, error) {
 	password := "ukubrwzsfcxwjoih"
 
 	subject := "Reset Password"
-	body := `Click on the following link to reset your password: <a href="https://smt-client-mui.vercel.app/reset-password/"` + token + `">https://smt-client-mui.vercel.app/reset-password/` + token + `</a>`
+	body := `Click on the following link to reset your password: <a href="https://smt-client-mui.vercel.app/reset-password/` + token + `">https://smt-client-mui.vercel.app/reset-password/` + token + `</a>`
 
 	request := Mail{
 		Sender:  sender,
