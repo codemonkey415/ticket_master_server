@@ -174,7 +174,9 @@ func GetEventByVenue() gin.HandlerFunc {
 		var result []bson.M
 
 		var requestBody struct {
-			Venue string `json:"venue"`
+			StartDate time.Time `json:"start_date"`
+			EndDate   time.Time `json:"end_date"`
+			Venue     string    `json:"venue"`
 		}
 
 		err := c.ShouldBindJSON(&requestBody)
@@ -187,6 +189,10 @@ func GetEventByVenue() gin.HandlerFunc {
 			bson.E{
 				Key: "$match",
 				Value: bson.M{
+					"event_date": bson.M{
+						"$gte": requestBody.StartDate,
+						"$lte": requestBody.EndDate,
+					},
 					"venue": requestBody.Venue,
 				},
 			},
