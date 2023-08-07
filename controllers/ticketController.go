@@ -44,20 +44,16 @@ func GetAllTickets() gin.HandlerFunc {
 		min_price := seat.MinPrice
 		max_price := seat.MaxPrice
 
-		seat_group := ""
-
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		var ctx, cancel = context.WithTimeout(context.Background(), 200*time.Second)
 		var ticket []models.Ticket
 
 		row_name_regex := bson.M{"$regex": row_name, "$options": "i"}
 		section_name_regex := bson.M{"$regex": section_name, "$options": "i"}
-		seat_group_regex := bson.M{"$regex": seat_group, "$options": "i"}
-		event_id_regex := bson.M{"$regex": eventId, "$options": "i"}
+		// event_id_regex := bson.M{"$regex": eventId, "$options": "i"}
 
 		row_name_match := bson.M{"row_name": row_name_regex}
 		section_name_match := bson.M{"section_name": section_name_regex}
-		seat_group_match := bson.M{"seat_group": seat_group_regex}
-		event_id_match := bson.M{"event_id": event_id_regex}
+		// event_id_match := bson.M{"event_id": event_id_regex}
 
 		pipeline := bson.A{
 			bson.M{
@@ -81,13 +77,40 @@ func GetAllTickets() gin.HandlerFunc {
 			},
 			bson.M{
 				"$match": bson.M{
-					"is_available": 1,
+					"event_id": eventId,
+					// "section_name": section_name,
+					// "row_name":     row_name,
 				},
 			},
-			bson.M{"$match": row_name_match},
-			bson.M{"$match": section_name_match},
-			bson.M{"$match": seat_group_match},
-			bson.M{"$match": event_id_match},
+			// bson.M{"$match": row_name_match},
+			// bson.M{"$match": section_name_match},
+			// bson.M{"$match": event_id_match},
+		}
+
+		if section_name == "" {
+			fmt.Println("1")
+			pipeline = append(pipeline, bson.M{
+				"$match": section_name_match,
+			})
+		} else {
+			fmt.Println("2")
+			pipeline = append(pipeline, bson.M{
+				"$match": bson.M{
+					"section_name": section_name,
+				},
+			})
+		}
+
+		if row_name == "" {
+			pipeline = append(pipeline, bson.M{
+				"$match": row_name_match,
+			})
+		} else {
+			pipeline = append(pipeline, bson.M{
+				"$match": bson.M{
+					"row_name": row_name,
+				},
+			})
 		}
 
 		results, err := ticketCollection.Aggregate(ctx, pipeline)
@@ -98,8 +121,6 @@ func GetAllTickets() gin.HandlerFunc {
 			return
 		}
 
-		// var ticketInfo string
-
 		defer results.Close(ctx)
 		for results.Next(ctx) {
 			var singleTicket models.Ticket
@@ -107,18 +128,8 @@ func GetAllTickets() gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 				return
 			}
-
-			// Append the ticket information to the ticketInfo string
-			// ticketInfo += fmt.Sprintf("Event ID: %s\n", singleTicket.EventId)
-			// ticketInfo += fmt.Sprintf("Row Name: %s\n", singleTicket.RowName)
-			// ticketInfo += fmt.Sprintf("Seat Name: %s\n", singleTicket.SeatName)
-			// ticketInfo += fmt.Sprintf("Seat Group: %s\n", singleTicket.SeatGroup)
-			// ticketInfo += fmt.Sprintf("Price: %s\n", singleTicket.Price)
-			// ticketInfo += fmt.Sprintf("Is Available: %v\n\n", singleTicket.IsAvailable)
-
 			ticket = append(ticket, singleTicket)
 		}
-
 		c.JSON(http.StatusOK, ticket)
 	}
 }
@@ -229,44 +240,7 @@ func GetVenues() gin.HandlerFunc {
 			},
 		}
 
-		lookupStage := bson.D{
-			bson.E{
-				Key: "$lookup",
-				Value: bson.M{
-					"from":         "events",
-					"localField":   "_id",
-					"foreignField": "event_id",
-					"as":           "event",
-				},
-			},
-		}
-
-		unwindStage := bson.D{{Key: "$unwind", Value: "$event"}}
-
-		projectStage := bson.D{
-			bson.E{
-				Key: "$project",
-				Value: bson.M{
-					"event_date": "$event.event_date",
-					"label":      "$event.venue",
-					"venue":      "$event.venue",
-				},
-			},
-		}
-
-		matchStage := bson.D{
-			bson.E{
-				Key: "$match",
-				Value: bson.M{
-					"event_date": bson.M{
-						"$gte": requestBody.StartDate,
-						"$lte": requestBody.EndDate,
-					},
-				},
-			},
-		}
-
-		pipeline := mongo.Pipeline{groupStage, lookupStage, unwindStage, projectStage, matchStage}
+		pipeline := mongo.Pipeline{groupStage /*, lookupStage, unwindStage, projectStage, matchStage*/}
 		results, err := ticketCollection.Aggregate(ctx, pipeline)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -369,28 +343,35 @@ func GetRows() gin.HandlerFunc {
 		c.JSON(http.StatusOK, result)
 	}
 }
-func NotifySeat() gin.HandlerFunc {
+
+func CountSeats() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id := c.Param("id")
 
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-
-		// id, err := primitive.ObjectIDFromHex("yourID")
-
-		fmt.Println("id", id)
-		// Create a filter to find the document with the given ID
-		filter := bson.M{"_id": id}
-
-		// Call FindOne to retrieve the document
-		var result bson.M
-		err := ticketCollection.FindOne(ctx, filter).Decode(&result)
-
 		defer cancel()
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
+		var result []bson.M
+
+		groupStage := bson.D{
+			bson.E{
+				Key: "$group",
+				Value: bson.D{
+					{Key: "_id", Value: "$event_id"},
+				},
+			},
 		}
 
-		c.JSON(http.StatusOK, result)
+		pipeline := mongo.Pipeline{groupStage}
+		results, err := ticketCollection.Aggregate(ctx, pipeline)
+
+		defer results.Close(ctx)
+		for results.Next(ctx) {
+			var single bson.M
+			if err = results.Decode(&single); err != nil {
+				log.Fatal(err)
+			}
+			result = append(result, single)
+		}
+
+		c.JSON(http.StatusOK, gin.H{"result": result})
 	}
 }

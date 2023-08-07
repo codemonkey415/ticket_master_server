@@ -30,7 +30,8 @@ func TicketRoutes(incomingRoutes *gin.Engine) {
 }
 
 func EventRoutes(incomingRoutes *gin.Engine) {
-	incomingRoutes.GET("/api/events/", controller.GetAllEvents())
+	incomingRoutes.POST("/api/venues/", controller.GetVenueByDate())
+	incomingRoutes.POST("/api/events/", controller.GetEventByVenue())
 }
 
 func SeatRoutes(incomingRoutes *gin.Engine) {
@@ -39,5 +40,5 @@ func SeatRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/api/seat/sections/:eventid/", controller.GetSectionNames())
 	incomingRoutes.GET("/api/seat/rows/:eventid/", controller.GetRows())
 	incomingRoutes.POST("/api/seat/", controller.GetAllTickets())
-	incomingRoutes.POST("/api/seat/notify/", controller.NotifySeat())
+	incomingRoutes.POST("/api/seat/count/", controller.CountSeats())
 }
