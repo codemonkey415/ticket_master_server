@@ -30,6 +30,24 @@ type Seat struct {
 	SectionName string `json:"section_name"`
 }
 
+func handleTicketCollectionChange(eventStream *mongo.ChangeStream) {
+	fmt.Println("hello")
+	for eventStream.Next(context.Background()) {
+		var changeEvent bson.M
+		if err := eventStream.Decode(&changeEvent); err != nil {
+			log.Println("Error decoding change event:", err)
+			continue
+		}
+
+		// Handle the change event
+		log.Println("TicketCollection changed:", changeEvent)
+		// You can perform any desired actions here when the collection changes
+	}
+	if err := eventStream.Err(); err != nil {
+		log.Println("Error in change stream:", err)
+	}
+}
+
 func GetAllTickets() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var seat Seat
@@ -37,6 +55,16 @@ func GetAllTickets() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+
+		// Create a change stream on the ticketCollection
+		changeStream, err := ticketCollection.Watch(context.Background(), mongo.Pipeline{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Start a goroutine to handle change stream events
+		go handleTicketCollectionChange(changeStream)
 
 		eventId := seat.EventId
 		row_name := seat.RowName
@@ -341,37 +369,5 @@ func GetRows() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, result)
-	}
-}
-
-func CountSeats() gin.HandlerFunc {
-	return func(c *gin.Context) {
-
-		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
-		defer cancel()
-		var result []bson.M
-
-		groupStage := bson.D{
-			bson.E{
-				Key: "$group",
-				Value: bson.D{
-					{Key: "_id", Value: "$event_id"},
-				},
-			},
-		}
-
-		pipeline := mongo.Pipeline{groupStage}
-		results, err := ticketCollection.Aggregate(ctx, pipeline)
-
-		defer results.Close(ctx)
-		for results.Next(ctx) {
-			var single bson.M
-			if err = results.Decode(&single); err != nil {
-				log.Fatal(err)
-			}
-			result = append(result, single)
-		}
-
-		c.JSON(http.StatusOK, gin.H{"result": result})
 	}
 }

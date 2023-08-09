@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	jsoniter "github.com/json-iterator/go"
 
 	"github.com/octocat0415/database"
+	helper "github.com/octocat0415/helpers"
 
 	"github.com/octocat0415/models"
 
@@ -25,7 +27,6 @@ var seatCollection *mongo.Collection = database.OpenCollection(database.Client, 
 
 func GetUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		fmt.Println("+++++++++++")
 		email := c.GetString("email")
 
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
@@ -51,7 +52,6 @@ func GetUser() gin.HandlerFunc {
 }
 
 func GetSeatDataForUser(user models.User) ([]models.Ticket, error) {
-	fmt.Println(user.Reservations)
 	filter := bson.M{"_id": bson.M{"$in": user.Reservations}}
 
 	var tickets []models.Ticket
@@ -99,9 +99,6 @@ func GetUsers() gin.HandlerFunc {
 				page = p
 			}
 		}
-
-		fmt.Println(pageSize)
-		fmt.Println(page)
 
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		var users []bson.M
@@ -151,8 +148,6 @@ func ChangeStatus() gin.HandlerFunc {
 
 		user_id := c.Param("userid")
 		parsedID, err := primitive.ObjectIDFromHex(user_id)
-
-		fmt.Println(user_id)
 
 		filter := bson.M{"_id": parsedID}
 
@@ -376,5 +371,96 @@ func RemoveReservations() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, user)
+	}
+}
+
+func RunNotifySeats(ch chan<- bool, email string) {
+	go func() {
+		for {
+			/////////////////////////////////////////////////////
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // Reduced timeout duration for better performance
+			defer cancel()
+
+			matchStage := bson.D{
+				bson.E{
+					Key: "$match",
+					Value: bson.D{
+						{Key: "email", Value: email},
+					},
+				},
+			}
+
+			lookupStage := bson.D{
+				bson.E{
+					Key: "$lookup",
+					Value: bson.M{
+						"from":         "seats",
+						"localField":   "reservations",
+						"foreignField": "_id",
+						"as":           "reservations_detail",
+					},
+				},
+			}
+
+			pipeline := mongo.Pipeline{matchStage, lookupStage}
+			results, err := userCollection.Aggregate(ctx, pipeline)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer results.Close(ctx)
+
+			var result bson.M
+			if results.Next(ctx) {
+				if err = results.Decode(&result); err != nil {
+					log.Fatal(err)
+				}
+			}
+
+			reservationsJSON, err := jsoniter.Marshal(result["reservations_detail"])
+			var availableReservations []models.Ticket
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			var reservations []models.Ticket
+			err = jsoniter.Unmarshal(reservationsJSON, &reservations)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			for _, reservation := range reservations {
+				IsAvailable := reservation.IsAvailable
+				if IsAvailable == 1 {
+					availableReservations = append(availableReservations, reservation)
+				}
+			}
+			var readableReservations string
+
+			if len(availableReservations) > 0 {
+				for _, ticket := range availableReservations {
+					readableReservations += fmt.Sprintf("Event ID: %s\nRow Name: %s\nSeat Group: %s\nSeat Name: %s\nPrice: %s\n\n", ticket.EventId, ticket.RowName, ticket.SeatGroup, ticket.SeatName, ticket.Price)
+				}
+				helper.SendMail(email, readableReservations)
+			}
+			////////////////////////////////////////////////////
+			time.Sleep(1 * time.Minute)
+		}
+	}()
+}
+
+func StartNotifySeats() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		email := c.GetString("email")
+
+		// Create a channel for communication
+		ch := make(chan bool)
+
+		// Start the goroutine function
+		RunNotifySeats(ch, email)
+
+		// Return a response to the front end
+		c.JSON(http.StatusOK, gin.H{"message": "NotifySeats goroutine started"})
 	}
 }

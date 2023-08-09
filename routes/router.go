@@ -16,13 +16,14 @@ func UserRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/api/users/changeRole/:userid/", controller.ChangeRole())
 	incomingRoutes.POST("/api/users/saveReservations/:userid/", controller.SaveReservations())
 	incomingRoutes.POST("/api/users/removeReservations/:userid/", controller.RemoveReservations())
+	incomingRoutes.GET("/api/users/notify/", controller.StartNotifySeats())
 }
 
 func AuthRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/users/register/", controller.SignUp())
 	incomingRoutes.POST("/users/login/", controller.Login())
 	incomingRoutes.POST("/forgotpassword/", controller.ForgotPassword())
-	incomingRoutes.POST("/resetpassword/:token", controller.ResetPassword())
+	incomingRoutes.POST("/resetpassword/:token/", controller.ResetPassword())
 }
 
 func TicketRoutes(incomingRoutes *gin.Engine) {
@@ -40,5 +41,4 @@ func SeatRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.GET("/api/seat/sections/:eventid/", controller.GetSectionNames())
 	incomingRoutes.GET("/api/seat/rows/:eventid/", controller.GetRows())
 	incomingRoutes.POST("/api/seat/", controller.GetAllTickets())
-	incomingRoutes.POST("/api/seat/count/", controller.CountSeats())
 }

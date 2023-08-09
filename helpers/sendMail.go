@@ -63,7 +63,7 @@ func SendMail(email string, data string) {
 	user := "foryoursuccess0415@gmail.com"
 	password := "ukubrwzsfcxwjoih"
 
-	subject := "Simple HTML mail"
+	subject := "Available seats"
 	body := `<pre>` + data + `</pre>`
 
 	request := Mail{
