@@ -30,23 +30,23 @@ type Seat struct {
 	SectionName string `json:"section_name"`
 }
 
-func handleTicketCollectionChange(eventStream *mongo.ChangeStream) {
-	fmt.Println("hello")
-	for eventStream.Next(context.Background()) {
-		var changeEvent bson.M
-		if err := eventStream.Decode(&changeEvent); err != nil {
-			log.Println("Error decoding change event:", err)
-			continue
-		}
+// func handleTicketCollectionChange(eventStream *mongo.ChangeStream) {
+// 	fmt.Println("hello")
+// 	for eventStream.Next(context.Background()) {
+// 		var changeEvent bson.M
+// 		if err := eventStream.Decode(&changeEvent); err != nil {
+// 			log.Println("Error decoding change event:", err)
+// 			continue
+// 		}
 
-		// Handle the change event
-		log.Println("TicketCollection changed:", changeEvent)
-		// You can perform any desired actions here when the collection changes
-	}
-	if err := eventStream.Err(); err != nil {
-		log.Println("Error in change stream:", err)
-	}
-}
+// 		// Handle the change event
+// 		log.Println("TicketCollection changed:", changeEvent)
+// 		// You can perform any desired actions here when the collection changes
+// 	}
+// 	if err := eventStream.Err(); err != nil {
+// 		log.Println("Error in change stream:", err)
+// 	}
+// }
 
 func GetAllTickets() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -56,15 +56,15 @@ func GetAllTickets() gin.HandlerFunc {
 			return
 		}
 
-		// Create a change stream on the ticketCollection
-		changeStream, err := ticketCollection.Watch(context.Background(), mongo.Pipeline{})
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
+		// // Create a change stream on the ticketCollection
+		// changeStream, err := ticketCollection.Watch(context.Background(), mongo.Pipeline{})
+		// if err != nil {
+		// 	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		// 	return
+		// }
 
-		// Start a goroutine to handle change stream events
-		go handleTicketCollectionChange(changeStream)
+		// // Start a goroutine to handle change stream events
+		// go handleTicketCollectionChange(changeStream)
 
 		eventId := seat.EventId
 		row_name := seat.RowName
