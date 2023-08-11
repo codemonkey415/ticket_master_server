@@ -2,8 +2,8 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"strconv"
 
 	"net/http"
 	"time"
@@ -30,24 +30,6 @@ type Seat struct {
 	SectionName string `json:"section_name"`
 }
 
-// func handleTicketCollectionChange(eventStream *mongo.ChangeStream) {
-// 	fmt.Println("hello")
-// 	for eventStream.Next(context.Background()) {
-// 		var changeEvent bson.M
-// 		if err := eventStream.Decode(&changeEvent); err != nil {
-// 			log.Println("Error decoding change event:", err)
-// 			continue
-// 		}
-
-// 		// Handle the change event
-// 		log.Println("TicketCollection changed:", changeEvent)
-// 		// You can perform any desired actions here when the collection changes
-// 	}
-// 	if err := eventStream.Err(); err != nil {
-// 		log.Println("Error in change stream:", err)
-// 	}
-// }
-
 func GetAllTickets() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var seat Seat
@@ -56,15 +38,25 @@ func GetAllTickets() gin.HandlerFunc {
 			return
 		}
 
-		// // Create a change stream on the ticketCollection
-		// changeStream, err := ticketCollection.Watch(context.Background(), mongo.Pipeline{})
-		// if err != nil {
-		// 	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		// 	return
-		// }
+		pageSizeStr := c.Query("page_size")
+		pageStr := c.Query("page")
 
-		// // Start a goroutine to handle change stream events
-		// go handleTicketCollectionChange(changeStream)
+		pageSize := 20
+		page := 1
+
+		if pageSizeStr != "" {
+			pSize, err := strconv.Atoi(pageSizeStr)
+			if err == nil && pSize > 0 {
+				pageSize = pSize
+			}
+		}
+
+		if pageStr != "" {
+			p, err := strconv.Atoi(pageStr)
+			if err == nil && p > 0 {
+				page = p
+			}
+		}
 
 		eventId := seat.EventId
 		row_name := seat.RowName
@@ -77,11 +69,9 @@ func GetAllTickets() gin.HandlerFunc {
 
 		row_name_regex := bson.M{"$regex": row_name, "$options": "i"}
 		section_name_regex := bson.M{"$regex": section_name, "$options": "i"}
-		// event_id_regex := bson.M{"$regex": eventId, "$options": "i"}
 
 		row_name_match := bson.M{"row_name": row_name_regex}
 		section_name_match := bson.M{"section_name": section_name_regex}
-		// event_id_match := bson.M{"event_id": event_id_regex}
 
 		pipeline := bson.A{
 			bson.M{
@@ -98,30 +88,18 @@ func GetAllTickets() gin.HandlerFunc {
 			bson.M{
 				"$match": bson.M{
 					"$and": bson.A{
-						bson.M{"price_decimal": bson.M{"$gte": min_price}},
-						bson.M{"price_decimal": bson.M{"$lte": max_price}},
+						bson.M{"price_decimal": bson.M{"$gte": min_price, "$lte": max_price}},
+						bson.M{"event_id": eventId},
 					},
 				},
 			},
-			bson.M{
-				"$match": bson.M{
-					"event_id": eventId,
-					// "section_name": section_name,
-					// "row_name":     row_name,
-				},
-			},
-			// bson.M{"$match": row_name_match},
-			// bson.M{"$match": section_name_match},
-			// bson.M{"$match": event_id_match},
 		}
 
 		if section_name == "" {
-			fmt.Println("1")
 			pipeline = append(pipeline, bson.M{
 				"$match": section_name_match,
 			})
 		} else {
-			fmt.Println("2")
 			pipeline = append(pipeline, bson.M{
 				"$match": bson.M{
 					"section_name": section_name,
@@ -141,6 +119,33 @@ func GetAllTickets() gin.HandlerFunc {
 			})
 		}
 
+		countPipeline := append(pipeline, bson.M{
+			"$count": "count",
+		})
+
+		countResults, err := ticketCollection.Aggregate(ctx, countPipeline)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		defer countResults.Close(ctx)
+
+		var countResultStruct struct {
+			Count int `bson:"count"`
+		}
+		if countResults.Next(ctx) {
+			if err := countResults.Decode(&countResultStruct); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+
+		pipeline = append(pipeline, bson.M{
+			"$skip": int64((page - 1) * pageSize),
+		}, bson.M{
+			"$limit": int64(pageSize),
+		})
+
 		results, err := ticketCollection.Aggregate(ctx, pipeline)
 
 		defer cancel()
@@ -150,6 +155,7 @@ func GetAllTickets() gin.HandlerFunc {
 		}
 
 		defer results.Close(ctx)
+
 		for results.Next(ctx) {
 			var singleTicket models.Ticket
 			if err = results.Decode(&singleTicket); err != nil {
@@ -158,7 +164,10 @@ func GetAllTickets() gin.HandlerFunc {
 			}
 			ticket = append(ticket, singleTicket)
 		}
-		c.JSON(http.StatusOK, ticket)
+		c.JSON(http.StatusOK, gin.H{
+			"count":  countResultStruct.Count,
+			"ticket": ticket,
+		})
 	}
 }
 
